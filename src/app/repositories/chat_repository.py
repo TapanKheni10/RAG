@@ -15,7 +15,9 @@ class ChatRepository:
         
         query_vector = self.embedding_fn.encode([question])
         
-        query_sparse_vector = self.database.pinecone_client.inference.embed(
+        pc = self.database.pinecone_client
+        
+        query_sparse_vector = await pc.inference.embed(
             model = 'pinecone-sparse-english-v0',
             inputs = [question],
             parameters = {
@@ -24,35 +26,45 @@ class ChatRepository:
             }
         )
         
-        index = self.database.pinecone_client.Index('hybrid-search-index')
+        index_info = await pc.describe_index('hybrid-search-index')
         
-        results = index.query(
-            namespace = 'hybrid-search-attention-namespace',
-            vector = query_vector[0].tolist(),
-            sparse_vector = {
-                "indices" : query_sparse_vector[0]['sparse_indices'],
-                "values" : query_sparse_vector[0]['sparse_values']
-            },
-            top_k = 10,
-            include_values = False,
-            include_metadata = True
-        )
+        async with pc.IndexAsyncio(host = index_info['host']) as index:
         
-        relevant_text = []
-
-        for result in results['matches']:
-            relevant_text.append(result['metadata']['source_text'])
-                
-        reranked_results = self.cohere_client.rerank(
-            model = 'rerank-v3.5',
-            query = question,
-            documents = relevant_text,
-            return_documents = True,
-            top_n = 3
-        )
-        
-        reranked_text = []
-        for doc in reranked_results.results:
-            reranked_text.append(doc.document.text)
+            results = await index.query(
+                namespace = 'hybrid-search-attention-namespace',
+                vector = query_vector[0].tolist(),
+                sparse_vector = {
+                    "indices" : query_sparse_vector[0]['sparse_indices'],
+                    "values" : query_sparse_vector[0]['sparse_values']
+                },
+                top_k = 10,
+                include_values = False,
+                include_metadata = True
+            )
             
-        return reranked_text
+            relevant_text = []
+
+            for result in results['matches']:
+                relevant_text.append(result['metadata']['source_text'])
+                
+            print('='*50)
+            print(relevant_text)
+            print('='*50)
+                    
+            reranked_results = self.cohere_client.rerank(
+                model = 'rerank-v3.5',
+                query = question,
+                documents = relevant_text,
+                return_documents = True,
+                top_n = 3
+            )
+            
+            reranked_text = []
+            for doc in reranked_results.results:
+                reranked_text.append(doc.document.text)
+            
+            print('='*50)
+            print(reranked_text)
+            print('='*50)
+            
+            return reranked_text

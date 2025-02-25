@@ -11,6 +11,8 @@ class DocumentRepository:
     
     async def save_text_chunks(self, doc_chunks: List[str]):
         
+        pc = database.pinecone_client
+        
         batch_size = 96
         
         sparse_embeddings = []
@@ -18,7 +20,7 @@ class DocumentRepository:
         for i in tqdm(range(0, len(doc_chunks), batch_size)):
             i_end = min(i + batch_size, len(doc_chunks))
             
-            sp_embed = database.pinecone_client.inference.embed(
+            sp_embed = await pc.inference.embed(
                 model = 'pinecone-sparse-english-v0',
                 inputs = doc_chunks[i:i_end],
                 parameters = {
@@ -29,36 +31,38 @@ class DocumentRepository:
             sparse_embeddings.extend(sp_embed)
         
         embeddings = self.embedding_fn.encode(doc_chunks)
+        
+        index_info = await pc.describe_index('hybrid-search-index')
     
-        index = database.pinecone_client.Index('hybrid-search-index')
+        async with pc.IndexAsyncio(host = index_info['host']) as index:
 
-        for i in tqdm(range(0, len(doc_chunks), batch_size)):
-            
-            i_end = min(i + batch_size, len(doc_chunks))
-            
-            sparse_embeds = sparse_embeddings[i:i_end]
-            dense_embeds = embeddings[i:i_end]
-            
-            ids = [str(x) for x in range(i, i_end)]
-            
-            records = []
-            
-            for j in range(len(ids)):
-                records.append({
-                    "id" : ids[j],
-                    "sparse_values" : {
-                        "indices" : sparse_embeds[j]['sparse_indices'],
-                        "values" : sparse_embeds[j]['sparse_values']
-                    },
-                    "values" : dense_embeds[j],
-                    "metadata" : {
-                        "source_text" : doc_chunks[i+j]
-                    }
-                }) 
+            for i in tqdm(range(0, len(doc_chunks), batch_size)):
                 
-            index.upsert(
-                vectors = records,
-                namespace = 'hybrid-search-attention-namespace'
-            )
+                i_end = min(i + batch_size, len(doc_chunks))
+                
+                sparse_embeds = sparse_embeddings[i:i_end]
+                dense_embeds = embeddings[i:i_end]
+                
+                ids = [str(x) for x in range(i, i_end)]
+                
+                records = []
+                
+                for j in range(len(ids)):
+                    records.append({
+                        "id" : ids[j],
+                        "sparse_values" : {
+                            "indices" : sparse_embeds[j]['sparse_indices'],
+                            "values" : sparse_embeds[j]['sparse_values']
+                        },
+                        "values" : dense_embeds[j],
+                        "metadata" : {
+                            "source_text" : doc_chunks[i+j]
+                        }
+                    }) 
+                    
+                await index.upsert(
+                    vectors = records,
+                    namespace = 'hybrid-search-attention-namespace'
+                )
             
         return {"message": "Text chunks saved successfully into the vectorDB."}

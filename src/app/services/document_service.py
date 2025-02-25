@@ -11,6 +11,7 @@ class DocumentService:
         self.document_repo = document_repo
         
     async def get_text_from_doc(self, file_path: str):
+        
         text = ""
     
         doc = fitz.open(file_path)

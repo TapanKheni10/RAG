@@ -1,9 +1,10 @@
 from app.config.settings import Config
-from pinecone.grpc import PineconeGRPC
+from pinecone import PineconeAsyncio
 from pinecone import ServerlessSpec
 from pymilvus import MilvusClient
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.models import VectorParams, Distance
+import time
 
 class VectorDB:
     def __init__(self):
@@ -12,12 +13,13 @@ class VectorDB:
         self.qdrant_client = None
         
     async def create_pinecone_client(self):
-        self.pinecone_client = PineconeGRPC(api_key = Config.PINECONE_API_KEY)
+        self.pinecone_client = PineconeAsyncio(api_key = Config.PINECONE_API_KEY)
         
     async def create_pinecone_index(self):
-        if not self.pinecone_client.has_index(name = 'hybrid-search-index'):
-            
-            self.pinecone_client.create_index(
+        
+        if not await self.pinecone_client.has_index(name = 'hybrid-search-index'):
+                
+            await self.pinecone_client.create_index(
                 name = 'hybrid-search-index',
                 dimension = 768,
                 metric = 'dotproduct',
@@ -26,9 +28,11 @@ class VectorDB:
                     region="us-east-1"        
                 )
             )
+            
+            time.sleep(2)
         
     async def delete_pinecone_index(self):
-        self.pinecone_client.delete_index(name = 'hybrid-search-index')
+        await self.pinecone_client.delete_index(name = 'hybrid-search-index')
         
     async def create_qdrant_client(self):
         self.qdrant_client = AsyncQdrantClient(

@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import re
+import time
 
 version = "0.1.0"
 
@@ -8,6 +9,7 @@ def upload_document():
     uploaded_file = st.file_uploader(label = "Choose a document", type = ['pdf', 'txt'])
     
     if uploaded_file:
+        
         return_message = requests.post(f'http://localhost:8000/api/{version}/doc/upload', files = {'uploaded_file': uploaded_file})
         
         if return_message:    

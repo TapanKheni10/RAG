@@ -22,3 +22,4 @@ chromadb
 pymilvus
 groq
 qdrant_client
+cohere

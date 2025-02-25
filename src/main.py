@@ -9,11 +9,11 @@ from app.routes import (
 @asynccontextmanager
 async def life_span(app: FastAPI):
     print("Starting the application 🎬")
-    await database.create_qdrant_client()
-    await database.create_qdrant_collection()
+    await database.create_pinecone_client()
+    await database.create_pinecone_index()
     print('database connection established...')
     yield
-    await database.delete_qdrant_collection()
+    await database.delete_pinecone_index()
     print("your database connection closed.")
     
 version = "0.1.0"

@@ -9,5 +9,6 @@ class Settings(BaseSettings):
     COHERE_API_KEY: str
     PINECONE_API_KEY: str
     GROQ_API_KEY: str
+    COHERE_API_KEY: str
 
 Config = Settings()

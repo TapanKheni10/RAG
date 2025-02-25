@@ -15,12 +15,12 @@ class VectorDB:
         self.pinecone_client = PineconeGRPC(api_key = Config.PINECONE_API_KEY)
         
     async def create_pinecone_index(self):
-        if not self.pinecone_client.has_index(name = 'document-index'):
+        if not self.pinecone_client.has_index(name = 'hybrid-search-index'):
             
             self.pinecone_client.create_index(
-                name = 'document-index',
+                name = 'hybrid-search-index',
                 dimension = 768,
-                metric = 'cosine',
+                metric = 'dotproduct',
                 spec = ServerlessSpec(
                     cloud="aws",
                     region="us-east-1"        
@@ -28,7 +28,7 @@ class VectorDB:
             )
         
     async def delete_pinecone_index(self):
-        self.pinecone_client.delete_index(name = 'document-index')
+        self.pinecone_client.delete_index(name = 'hybrid-search-index')
         
     async def create_qdrant_client(self):
         self.qdrant_client = AsyncQdrantClient(
